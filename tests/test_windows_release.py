@@ -138,6 +138,13 @@ class WindowsReleaseTests(unittest.TestCase):
         self.assertIn("docs/images/pxrd-extracted.png", files)
         self.assertIn("examples/pxrd-extracted.csv", files)
         self.assertFalse(any(p.startswith(("output/", "dist/", ".cache/")) for p in files))
+        self.assertFalse(any(part.startswith("._") for p in files for part in Path(p).parts))
+        self.assertEqual({p for p in files if p.startswith("examples/") and p.endswith(".png")}, {
+            "examples/patent_plots/us8198452b2-fig1.png",
+            "examples/patent_plots/us8198452b2-fig4.png",
+            "examples/patent_plots/us8198452b2-fig7.png",
+            "examples/patent_plots/us6583283b1-fig8.png",
+        })
 
     def test_publisher_rejects_mismatched_source_before_calling_github(self):
         with tempfile.TemporaryDirectory() as temporary:

@@ -34,7 +34,11 @@ def source_files():
                                       "plot_digitizer_auto.py", "requirements.txt", "requirements-core.txt")]
     for directory in ("plot_digitizer", "scripts", "tests", "examples", "docs", "release"):
         paths.extend(p for p in (ROOT / directory).rglob("*") if p.is_file()
-                     and "__pycache__" not in p.parts and p.suffix.lower() in
+                     and "__pycache__" not in p.parts
+                     and not any(part.startswith("._") for part in p.relative_to(ROOT).parts)
+                     and (directory != "examples" or "patent_plots" in p.relative_to(ROOT).parts
+                          or p.name in {"README.md", "pxrd-extracted.csv", "pxrd-extraction.json"})
+                     and p.suffix.lower() in
                      {".py", ".ps1", ".bat", ".txt", ".json", ".md", ".png", ".csv"})
     return sorted(set(paths))
 
@@ -156,6 +160,10 @@ def release_notes(repository, revision):
             "- **Ready-to-run:** extract the folder and double-click `launch_plot_digitizer.bat`.\n"
             "- **Offline wheels:** extract, run `install_dependencies.bat`, then launch. All 16 wheel hashes are checked; installation uses no pip or internet.\n\n"
             "Source revision: `" + revision + "`. Both ZIP contents are verified in fresh folders using only their bundled interpreter.\n\n"
+            "## Automatic workflow\n\n"
+            "The bottom bar contains **Open Image**, **Auto-calibration**, **Auto Extraction** and **Export**. "
+            "Manual calibration, ROI, tracing and extraction/export settings are available under the collapsed **Manual options** section. "
+            "The image and digitized data table have separate tabs. Review calibration suggestions and extracted curves before exporting CSV, JSON or XRDML.\n\n"
             "## Original and extracted curve\n\n"
             "| Original PXRD figure | Automatic extraction |\n| --- | --- |\n"
             "| ![Original patent plot](" + base + "/example-pxrd-original.png) | ![Extracted curve](" + base + "/example-pxrd-extracted.png) |\n\n"

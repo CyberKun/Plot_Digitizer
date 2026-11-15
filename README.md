@@ -8,7 +8,7 @@ and curve identities. Processing stays on your computer.
 
 ## Windows downloads
 
-The [Windows preview release](https://github.com/unwatcher/Plot_Digitizer/releases/tag/v0.2.0-preview.1)
+The [Windows preview release](https://github.com/unwatcher/Plot_Digitizer/releases/tag/v0.2.0-preview.2)
 provides two ZIP folders, both including portable Python 3.14.10 x64:
 
 - **Ready-to-run:** extract the full folder and double-click `launch_plot_digitizer.bat`.
@@ -44,14 +44,18 @@ automatic axis suggestions. Manual calibration works without OCR.
 ## Automatic mode and review
 
 1. Open an image. Inspect the green plot ROI; draw a replacement if needed.
-2. Select **Suggest axis calibration...**. Inspect the tick markers, correct
+2. Select **Auto-calibration…** at the bottom. Inspect the tick markers, correct
    values or positions, and apply the reviewed calibration. You can also
-   calibrate X and Y manually using visible tick values.
-3. Select **Find all curves, then choose**. Automatic mode selects contrast,
+   expand **Manual options** to calibrate X and Y using visible tick values.
+3. Select **Auto Extraction…**. Automatic mode selects contrast,
    grid handling and upward-peak/downward-dip sampling, then previews candidates.
 4. Click the desired curve, filter by color, or add all shown curves. Each
    selected curve becomes a new dataset. Inspect points before exporting CSV,
-   JSON or PXRD XRDML.
+   JSON or PXRD XRDML from the bottom **Export…** menu.
+
+The four bottom actions stay visible. Manual options start collapsed; expand
+them for ROI selection, manual calibration, tracing and extraction/export settings.
+The image and digitized data table have separate tabs.
 
 **X coverage measures sampled image columns.** Separation statuses and orange
 bands identify touching or unresolved strokes; they are heuristic diagnostics.

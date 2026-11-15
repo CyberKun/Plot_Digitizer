@@ -22,7 +22,7 @@ import cv2
 
 try:
     from .qt_runtime import configure_qt_runtime
-    from .ui_layout import AdaptiveDialog, AdaptivePanes, fit_to_screen
+    from .ui_layout import AdaptiveDialog, fit_to_screen, wrap_control_rows
     from .ui_appearance import apply_window_appearance, configure_application_appearance
     from .axis_calibration import suggest_axis_calibration, calibration_coefficients
     from .digitizer_core import (
@@ -33,7 +33,7 @@ try:
     )
 except ImportError:  # standalone archive: qt_runtime.py sits beside this file
     from qt_runtime import configure_qt_runtime
-    from ui_layout import AdaptiveDialog, AdaptivePanes, fit_to_screen
+    from ui_layout import AdaptiveDialog, fit_to_screen, wrap_control_rows
     from ui_appearance import apply_window_appearance, configure_application_appearance
     from axis_calibration import suggest_axis_calibration, calibration_coefficients
     from digitizer_core import (
@@ -53,6 +53,7 @@ from PySide6.QtWidgets import (
     QMessageBox, QHeaderView, QAbstractItemView, QSizePolicy,
     QSlider, QSpinBox, QDoubleSpinBox, QTabWidget, QScrollArea,
     QColorDialog, QProgressBar, QCheckBox, QTextBrowser, QDialogButtonBox,
+    QGridLayout, QMenu, QToolButton,
 )
 from PySide6.QtCore import QEvent, Qt, QTimer, QThread, Signal
 from PySide6.QtGui import QColor
@@ -78,8 +79,8 @@ def extraction_instructions_html(language="en"):
         <h2>通用步骤</h2>
         <ol>
           <li>打开图像后会自动检测 ROI。检查绿色框；可关闭“打开图像时自动检测 ROI”，也可点击“自动检测 ROI”重试，或手动绘制框调整范围。</li>
-          <li>分别校准 X 与 Y 轴。</li>
-          <li>点击“检测所有曲线后选择”。自动驾驶会选择预设并检测曲线；在预览中点击目标曲线，也可按颜色筛选，再添加所选曲线或所有显示的曲线。每条曲线会存入一个新数据集。</li>
+          <li>点击底部“自动校准…”并检查刻度建议；也可展开“手动选项”分别校准 X 与 Y 轴。</li>
+          <li>点击底部“自动提取…”。自动驾驶会选择预设并检测曲线；在预览中点击目标曲线，也可按颜色筛选，再添加所选曲线或所有显示的曲线。每条曲线会存入一个新数据集。</li>
           <li>提取后检查彩色数据点；使用“框选拒绝点”拖框删除错误点。</li>
           <li>按 Ctrl+Z 可恢复最近一次框选删除，然后导出或加入参考数据库。</li>
         </ol>
@@ -102,8 +103,8 @@ def extraction_instructions_html(language="en"):
     <h2>Common workflow</h2>
     <ol>
       <li>Open the image to detect the ROI automatically. Inspect the green box. Toggle <b>Auto-detect ROI on image load</b> to disable this, use <b>Auto-detect ROI</b> to retry, or draw a box manually to adjust the area.</li>
-      <li>Calibrate X and Y independently from visible tick positions.</li>
-      <li>Click <b>Find all curves, then choose</b>. Autopilot chooses a preset and detects curve candidates. Click a curve in the preview or filter by color, then add the selected curve or all shown curves. Each is added as a new dataset.</li>
+      <li>Click <b>Auto-calibration…</b> at the bottom and review the proposed ticks. Expand <b>Manual options</b> to calibrate the axes manually.</li>
+      <li>Click <b>Auto Extraction…</b> at the bottom. Autopilot chooses a preset and detects curve candidates. Click a curve in the preview or filter by color, then add the selected curve or all shown curves. Each is added as a new dataset.</li>
       <li>Extract and inspect the colored points. Use <b>Reject Points in Box</b> to drag around false points.</li>
       <li>Press Ctrl+Z to restore the most recent box rejection, then export or add the trace as a reference.</li>
     </ol>
@@ -579,6 +580,17 @@ class ColorSwatch(QPushButton):
 # ══════════════════════════════════════════════════════════════════════════════
 
 ZH_LABELS = {
+    "Auto-calibration…": "自动校准…",
+    "Auto Extraction…": "自动提取…",
+    "Export…": "导出…",
+    "Manual options": "手动选项",
+    "Extraction settings": "提取设置",
+    "Export settings": "导出设置",
+    "Open an image to begin.": "打开图像以开始。",
+    "Review axis calibration, then extract curves.": "检查坐标轴校准后，自动提取曲线。",
+    "Axes calibrated. Ready for auto extraction.": "坐标轴已校准，可以自动提取。",
+    "Curves ready. Review the points, then export.": "曲线已就绪。请检查数据点后导出。",
+    "Show manual calibration, ROI, extraction and export settings.": "展开手动校准、ROI、提取和导出设置。",
     "Autopilot": "自动驾驶",
     "Find all curves, then choose": "检测所有曲线后选择",
     "Open an image and calibrate the axes, then let Autopilot choose a preset and find the curves. Optional: draw an ROI first.": "打开图像并校准坐标轴，然后让自动驾驶选择预设并检测曲线。也可先绘制 ROI。",
@@ -1286,7 +1298,6 @@ class MainWindow(QMainWindow):
         self._eyedrop_active = False
         self._build_ui(); self._build_menu()
         self._register_translatable_controls()
-        self.adaptive_panes.modeChanged.connect(lambda _compact: self._apply_language())
         self._apply_language()
         apply_window_appearance(self)
         self._update_control_metrics()
@@ -1336,7 +1347,7 @@ class MainWindow(QMainWindow):
 
     def _register_translatable_controls(self):
         seen = set()
-        for cls in (QPushButton, QCheckBox, QLabel):
+        for cls in (QPushButton, QToolButton, QCheckBox, QLabel):
             for widget in self.findChildren(cls):
                 key = widget.text()
                 if key not in ZH_LABELS or id(widget) in seen:
@@ -1388,9 +1399,6 @@ class MainWindow(QMainWindow):
             self._translatable_tooltips.append(widget)
 
     def _apply_language(self):
-        if hasattr(self, "adaptive_panes") and self.adaptive_panes.compact:
-            for index, title in enumerate(self.adaptive_panes.titles):
-                self.adaptive_panes.tabs.setTabText(index, self._tr(title))
         if hasattr(self, "menu_file"):
             self.menu_file.setTitle(self._tr("&File"))
             self.menu_edit.setTitle(self._tr("&Edit"))
@@ -1447,28 +1455,13 @@ class MainWindow(QMainWindow):
 
     def _build_ui(self):
         central=QWidget(); self.setCentralWidget(central)
-        root=QHBoxLayout(central); root.setContentsMargins(0,0,0,0); root.setSpacing(0)
-        splitter=QSplitter(Qt.Horizontal); root.addWidget(splitter)
+        root=QVBoxLayout(central); root.setContentsMargins(10,8,10,8); root.setSpacing(8)
 
         scroll=QScrollArea(); scroll.setWidgetResizable(True)
-        panel_w = 420
-        scroll.setMinimumWidth(panel_w)
+        scroll.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         self.controls_scroll = scroll
         left=QWidget(); scroll.setWidget(left)
         lv=QVBoxLayout(left); lv.setContentsMargins(8,8,8,8); lv.setSpacing(8)
-
-        # Open image
-        g=QGroupBox("Image"); gv=QVBoxLayout(g)
-        b=QPushButton("📂  Open Image…"); b.setObjectName("primary")
-        b.clicked.connect(self._open_image); gv.addWidget(b); lv.addWidget(g)
-
-        g=QGroupBox("Autopilot"); gv=QVBoxLayout(g)
-        hint=QLabel("Open an image and calibrate the axes, then let Autopilot choose a preset and find the curves. Optional: draw an ROI first.")
-        hint.setWordWrap(True); gv.addWidget(hint)
-        self.autopilot_button=QPushButton("Find all curves, then choose")
-        self.autopilot_button.setObjectName("primary")
-        self.autopilot_button.clicked.connect(self._run_autopilot)
-        gv.addWidget(self.autopilot_button); lv.addWidget(g)
 
         # Scale
         g=QGroupBox("Axis Scale"); gv=QVBoxLayout(g)
@@ -1499,11 +1492,6 @@ class MainWindow(QMainWindow):
             "X and Y are calibrated independently.\n"
             "No need to use the origin — click any\n"
             "visible tick marks on each axis."))
-        self.auto_calibration_button = QPushButton("Suggest axis calibration…")
-        self.auto_calibration_button.setObjectName("primary")
-        self.auto_calibration_button.clicked.connect(self._run_auto_calibration)
-        gv.addWidget(self.auto_calibration_button)
-
         # X axis
         xg=QGroupBox("X Axis  (orange ▼ markers)"); xgv=QVBoxLayout(xg)
         nxr=QHBoxLayout(); nxr.addWidget(QLabel("# X points:"))
@@ -1744,15 +1732,10 @@ class MainWindow(QMainWindow):
         row=QHBoxLayout(); row.addWidget(QLabel("Max points:"))
         self.spin_maxpts=QSpinBox(); self.spin_maxpts.setRange(10,100000); self.spin_maxpts.setValue(3000); row.addWidget(self.spin_maxpts); av.addLayout(row)
         self.progress=QProgressBar(); self.progress.setVisible(False); av.addWidget(self.progress)
-        av.addStretch(); tabs.addTab(aw,"⚡ Auto Extract")
+        av.addStretch(); tabs.addTab(aw,"Extraction settings")
 
         # Export
-        g=QGroupBox("Export"); gv=QVBoxLayout(g)
-        b=QPushButton("💾  Export CSV");    b.clicked.connect(self._export_csv);   gv.addWidget(b)
-        b=QPushButton("💾  Export JSON");   b.clicked.connect(self._export_json);  gv.addWidget(b)
-        bx=QPushButton("📡  Export XRDML"); bx.setObjectName("primary")
-        bx.setToolTip("Export active dataset as PANalytical XRDML\nfor direct import into HighScore / HighScore Plus")
-        bx.clicked.connect(self._export_xrdml); gv.addWidget(bx)
+        g=QGroupBox("Export settings"); gv=QVBoxLayout(g)
         self.chk_xrdml_opts=QCheckBox("⚙  XRDML options (wavelength, source)"); gv.addWidget(self.chk_xrdml_opts)
         xrdml_box=QGroupBox("XRDML Parameters"); xrdml_v=QVBoxLayout(xrdml_box); xrdml_box.setVisible(False)
         r=QHBoxLayout(); r.addWidget(QLabel("Ka1 (Å):"))
@@ -1826,9 +1809,10 @@ class MainWindow(QMainWindow):
         # PlotDigitizer release keeps the same extraction UI but omits this
         # CrystalTrace-specific integration panel.
         self.reference_group.setVisible(not self._standalone)
-        lv.addStretch(); splitter.addWidget(scroll)
+        lv.addStretch()
 
-        # Right panel
+        # Keep the image large; the full point table has its own tab.
+        self.preview_tabs=QTabWidget()
         right=QWidget(); rv=QVBoxLayout(right); rv.setContentsMargins(6,6,6,6); rv.setSpacing(6)
         self.canvas=PlotCanvas(self)
         self.canvas.calibration_click.connect(self._on_calib_click)
@@ -1837,47 +1821,157 @@ class MainWindow(QMainWindow):
         self.canvas.points_rejected.connect(self._on_points_rejected)
         self.canvas.mpl_connect("button_press_event", self._eyedrop_click)
         self.nav=NavigationToolbar(self.canvas,self)
-        rv.addWidget(self.nav); rv.addWidget(self.canvas,stretch=3)
-        tg=QGroupBox("Digitized Data"); tv=QVBoxLayout(tg)
+        rv.addWidget(self.nav); rv.addWidget(self.canvas,stretch=1)
+        self.preview_tabs.addTab(right, "Image")
+        tg=QWidget(); tv=QVBoxLayout(tg)
         self.table=QTableWidget(0,3)
         self.table.setHorizontalHeaderLabels(["Dataset","X","Y"])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        self.table.setMaximumHeight(175); tv.addWidget(self.table)
-        rv.addWidget(tg,stretch=1); splitter.addWidget(right)
-        splitter.setStretchFactor(0,0); splitter.setStretchFactor(1,1)
-        # Defer setSizes until after show() so geometry is resolved
-        from PySide6.QtCore import QTimer
-        QTimer.singleShot(0, lambda: splitter.setSizes(
-            [int(420 * self._dpi_scale),
-             splitter.width() - int(420 * self._dpi_scale)]))
-        self.pane_splitter = splitter
-        self.adaptive_panes = AdaptivePanes(
-            self, root, splitter, [scroll, right], ["Controls", "Image & Data"], 1050,
-        )
+        tv.addWidget(self.table)
+        self.preview_tabs.addTab(tg, "Digitized Data")
+        root.addWidget(self.preview_tabs, 1)
+
+        disclosure=QHBoxLayout()
+        self.manual_options_button=QToolButton()
+        self.manual_options_button.setText("Manual options")
+        self.manual_options_button.setCheckable(True)
+        self.manual_options_button.setArrowType(Qt.RightArrow)
+        self.manual_options_button.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        self.manual_options_button.setToolTip("Show manual calibration, ROI, extraction and export settings.")
+        self.manual_options_button.toggled.connect(self._set_manual_options_visible)
+        disclosure.addWidget(self.manual_options_button)
+        self.workflow_hint=QLabel()
+        self.workflow_hint.setWordWrap(True)
+        disclosure.addWidget(self.workflow_hint, 1)
+        root.addLayout(disclosure)
+        root.addWidget(scroll)
+        scroll.hide()
+
+        # These four actions stay outside the scrolling manual section.
+        self.action_bar=QWidget()
+        self.action_grid=QGridLayout(self.action_bar)
+        self.action_grid.setContentsMargins(0,0,0,0)
+        self.action_grid.setSpacing(8)
+        self.open_image_button=QPushButton("Open Image…")
+        self.open_image_button.clicked.connect(self._open_image)
+        self.auto_calibration_button=QPushButton("Auto-calibration…")
+        self.auto_calibration_button.clicked.connect(self._run_auto_calibration)
+        self.autopilot_button=QPushButton("Auto Extraction…")
+        self.autopilot_button.setObjectName("primary")
+        self.autopilot_button.clicked.connect(self._run_autopilot)
+        self.export_button=QPushButton("Export…")
+        self.export_menu=QMenu(self.export_button)
+        for label, callback in (("Export CSV…", self._export_csv),
+                                ("Export JSON…", self._export_json),
+                                ("Export XRDML…", self._export_xrdml)):
+            action=self.export_menu.addAction(label)
+            action.setProperty("i18n_key", label)
+            action.triggered.connect(callback)
+            self._translatable_actions.append(action)
+        self.export_button.setMenu(self.export_menu)
+        self.workflow_buttons=(self.open_image_button, self.auto_calibration_button,
+                               self.autopilot_button, self.export_button)
+        self._workflow_columns=0
+        self._action_geometry_key=None
+        self._action_layout_timer=QTimer(self)
+        self._action_layout_timer.setSingleShot(True)
+        self._action_layout_timer.timeout.connect(self._layout_workflow_actions)
+        for widget in (self.action_bar, self.manual_options_button, self.workflow_hint,
+                       *self.workflow_buttons):
+            widget.installEventFilter(self)
+        root.addWidget(self.action_bar)
+        self._layout_workflow_actions()
         for label in left.findChildren(QLabel):
             if "\n" in label.text() or len(label.text()) > 60:
                 label.setWordWrap(True)
-        self.adaptive_panes.update_layout()
-        if self.adaptive_panes.compact:
-            self.adaptive_panes.tabs.setCurrentIndex(1)
+        wrap_control_rows(left)
         self.status=QStatusBar(); self.setStatusBar(self.status)
         self._apply_extraction_preset(announce=False)
+        self._update_workflow_state()
+
+    def _set_manual_options_visible(self, expanded):
+        self.manual_options_button.setArrowType(Qt.DownArrow if expanded else Qt.RightArrow)
+        self.controls_scroll.setVisible(expanded)
+        self._update_control_metrics()
+
+    def _update_workflow_state(self):
+        if not hasattr(self, "workflow_hint"):
+            return
+        has_points=any(dataset["pts_real"] for dataset in self.canvas.datasets)
+        self.export_button.setEnabled(has_points)
+        if self.canvas.image is None:
+            hint="Open an image to begin."
+        elif not (self.canvas._x_calib_ready and self.canvas._y_calib_ready):
+            hint="Review axis calibration, then extract curves."
+        elif has_points:
+            hint="Curves ready. Review the points, then export."
+        else:
+            hint="Axes calibrated. Ready for auto extraction."
+        self.workflow_hint.setText(self._tr(hint))
+
+    def _layout_workflow_actions(self):
+        if not hasattr(self, "workflow_buttons"):
+            return
+        for button in self.workflow_buttons:
+            button.ensurePolished()
+        required=sum(button.minimumSizeHint().width() for button in self.workflow_buttons) + 3 * self.action_grid.spacing()
+        margins=self.centralWidget().layout().contentsMargins()
+        available=self.width() - margins.left() - margins.right()
+        columns=4 if available >= required else 2
+        button_sizes=[button.minimumSizeHint() for button in self.workflow_buttons]
+        manual_size=self.manual_options_button.minimumSizeHint()
+        metrics=self.manual_options_button.fontMetrics()
+        padding=2 * metrics.horizontalAdvance(" ")
+        manual_size.setWidth(max(manual_size.width(), metrics.horizontalAdvance(self.manual_options_button.text())
+                                 + self.manual_options_button.iconSize().width() + padding))
+        manual_size.setHeight(max(manual_size.height(), metrics.height() + padding))
+        geometry_key=(columns, available, tuple((size.width(), size.height()) for size in button_sizes),
+                      manual_size.width(), manual_size.height(), self.controls_scroll.isHidden())
+        if geometry_key == self._action_geometry_key:
+            return
+        self._action_geometry_key=geometry_key
+        if columns != self._workflow_columns:
+            self._workflow_columns=columns
+            while self.action_grid.count():
+                self.action_grid.takeAt(0)
+            for column in range(4):
+                self.action_grid.setColumnStretch(column, 1 if column < columns else 0)
+            for index, button in enumerate(self.workflow_buttons):
+                self.action_grid.addWidget(button, index // columns, index % columns)
+        # Stylesheet fonts settle after the window font event. Reserve the
+        # resulting control sizes so the status bar cannot clip the footer.
+        for button, size in zip(self.workflow_buttons, button_sizes):
+            button.setMinimumSize(size)
+            button.updateGeometry()
+        self.manual_options_button.setMinimumSize(manual_size)
+        self.manual_options_button.updateGeometry()
+        self.action_grid.invalidate()
+        self.action_bar.setMinimumHeight(self.action_grid.minimumSize().height())
+        self.action_bar.updateGeometry()
+        self.centralWidget().layout().activate()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._update_control_metrics()
+
+    def eventFilter(self, watched, event):
+        if event.type() in (QEvent.Resize, QEvent.LayoutRequest, QEvent.FontChange, QEvent.StyleChange):
+            self._action_layout_timer.start(0)
+        return super().eventFilter(watched, event)
 
     def _update_control_metrics(self):
         if not hasattr(self, "controls_scroll"):
             return
         panel = self.controls_scroll.widget()
-        title_width = max((group.fontMetrics().horizontalAdvance(group.title())
-                           for group in panel.findChildren(QGroupBox)), default=0)
         for table in (self.x_calib_table, self.y_calib_table):
             row_height = max(28, table.fontMetrics().lineSpacing() + 12)
             table.setMinimumHeight(table.horizontalHeader().sizeHint().height() + 3 * row_height + 8)
             table.setMaximumHeight(max(300, 7 * row_height))
         panel.layout().activate()
-        self.controls_scroll.setMinimumWidth(max(360, title_width + 64, panel.minimumSizeHint().width() + 24))
-        self.adaptive_panes.update_layout()
+        self.controls_scroll.setMaximumHeight(max(120, min(280, self.height() // 3)))
+        self._layout_workflow_actions()
 
     def changeEvent(self, event):
         super().changeEvent(event)
@@ -1887,6 +1981,7 @@ class MainWindow(QMainWindow):
     def showEvent(self, event):
         super().showEvent(event)
         fit_to_screen(self)
+        QTimer.singleShot(0, self._update_control_metrics)
         handle = self.windowHandle()
         if handle and not getattr(self, "_screen_connected", False):
             handle.screenChanged.connect(lambda _screen: fit_to_screen(self))
@@ -2014,6 +2109,7 @@ class MainWindow(QMainWindow):
             self.lbl_calib.setText(self._tr("✓ X calibrated     ✓ Y calibrated — ready!"))
         else:
             self.lbl_calib.setText(f"{x}     {y}")
+        self._update_workflow_state()
 
     def _refresh_table(self):
         self.table.setRowCount(0)
@@ -2024,6 +2120,7 @@ class MainWindow(QMainWindow):
                 self.table.setItem(r,1,QTableWidgetItem(f"{x:.6g}"))
                 self.table.setItem(r,2,QTableWidgetItem(f"{y:.6g}"))
         self.table.scrollToBottom()
+        self._update_workflow_state()
 
     def _ok(self):
         if self.canvas.image is None:
@@ -2055,6 +2152,7 @@ class MainWindow(QMainWindow):
     def _start_roi(self):
         if self.canvas.image is None:
             QMessageBox.warning(self,"No Image","Load an image first."); return
+        self.preview_tabs.setCurrentIndex(0)
         self.canvas.mode="roi"
         self._update_status(self._tr("ROI — click and drag to draw the plot area box, then release"))
 
@@ -2138,6 +2236,7 @@ class MainWindow(QMainWindow):
         self._update_status(self._tr("Reviewed axis calibration applied."))
 
     def _start_x_calibration(self):
+        self.preview_tabs.setCurrentIndex(0)
         n=self.spin_nx.value(); vals=[]
         for i in range(n):
             xi=self.x_calib_table.item(i,1)
@@ -2150,6 +2249,7 @@ class MainWindow(QMainWindow):
         self.canvas._redraw()
 
     def _start_y_calibration(self):
+        self.preview_tabs.setCurrentIndex(0)
         n=self.spin_ny.value(); vals=[]
         for i in range(n):
             yi=self.y_calib_table.item(i,1)
@@ -2206,6 +2306,7 @@ class MainWindow(QMainWindow):
         self.lbl_y_calib.setText(self._tr("○ ○ ○  awaiting Y points"))
         self.lbl_calib.setText(self._tr("⬤ X: not set     ⬤ Y: not set"))
         self.canvas._redraw(); self._update_status(self._tr("Calibration reset"))
+        self._update_workflow_state()
 
     # ── Image / scale ────────────────────────────────────────────────────────
 
@@ -2213,6 +2314,7 @@ class MainWindow(QMainWindow):
         path,_=QFileDialog.getOpenFileName(self,self._tr("Open Plot Image"),"",
             self._tr("Images (*.png *.jpg *.jpeg *.bmp *.tif *.tiff *.gif);;All (*)"))
         if path:
+            self.preview_tabs.setCurrentIndex(0)
             self._image_path = path
             self.canvas.load_image(path)
             self.lbl_calib.setText(self._tr("⬤ X: not set     ⬤ Y: not set"))
@@ -2223,6 +2325,7 @@ class MainWindow(QMainWindow):
             self._update_status(f"Loaded: {path}")
             if self.chk_auto_roi.isChecked():
                 self._detect_roi()
+            self._update_calib_status()
 
     def _scale_changed(self,idx):
         self.canvas.scale_type=("linear","semilogy","loglog","semilogx")[idx]
@@ -2232,6 +2335,7 @@ class MainWindow(QMainWindow):
 
     def _start_digitize(self):
         if not self._ok(): return
+        self.preview_tabs.setCurrentIndex(0)
         self.canvas.mode="digitize"
         self._update_status(f"DIGITIZE | {self.canvas.datasets[self.canvas.active_ds]['label']}")
 
@@ -2246,6 +2350,7 @@ class MainWindow(QMainWindow):
                 "The active dataset has no points to reject.",
             )
             return
+        self.preview_tabs.setCurrentIndex(0)
         self.canvas.mode = "reject"
         self.canvas._reject_click1 = None
         self._update_status(
@@ -2328,6 +2433,7 @@ class MainWindow(QMainWindow):
 
     def _start_eyedrop(self):
         if self.canvas.image is None: QMessageBox.warning(self,"No Image","Load an image first."); return
+        self.preview_tabs.setCurrentIndex(0)
         self._eyedrop_active=True; self.canvas.mode="none"
         self._update_status("EYEDROP — click a pixel on the curve")
 
@@ -2647,7 +2753,7 @@ class MainWindow(QMainWindow):
             "<b>Recommended workflow for black-on-white PXRD:</b><br>"
             "1. Open an image; inspect the automatic ROI or draw your own box<br>"
             "2. Calibrate X (click tick marks) and Y (click tick marks)<br>"
-            "3. Click Find all curves, then choose; add the desired trace<br>"
+            "3. Click Auto Extraction; review and add the desired trace<br>"
             "4. Inspect the points and reject false points by box<br><br>"
             "Ctrl+Z = undo the last point or restore the last rejected group")
 
