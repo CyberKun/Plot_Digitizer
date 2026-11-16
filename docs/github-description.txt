@@ -1,0 +1,1 @@
+Offline Autopilot for PXRD, Raman and IR figures. Review axis calibration, extract curves, and export CSV/JSON or HighScore-compatible XRDML. Portable Windows app plus a local HTTP API for lab workflows.

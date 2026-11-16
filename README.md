@@ -1,14 +1,48 @@
 # PlotDigitizer
 
-Reviewable scientific figure digitization for PXRD, Raman and IR plots.
-PlotDigitizer turns plot images into numerical curve candidates for scientific
-comparison, reference libraries and AI4S data preparation. It combines computer
-vision, path tracking and local OCR with visible review of the ROI, axis ticks
-and curve identities. Processing stays on your computer.
+**Scientific figures to reviewed curve data, ready for your analysis software.**
+
+Recover PXRD, Raman and IR curves from plot images with a local Autopilot workflow:
+**Open Image → Auto-calibration → Auto Extraction → Export**. The app detects the
+plot region, proposes axis calibration and extraction settings, and previews
+curve candidates so you can check the result before saving it.
+
+Export **HighScore-compatible XRDML** for diffraction work, or full-precision
+**CSV/JSON** for comparison, reference libraries and data processing. Use the
+portable Windows app for interactive review, or the bundled **local HTTP API**
+to connect Autopilot to scripts, notebooks and laboratory workflows.
+
+- **Extraction for spectra:** grid handling, stacked traces and downward IR dips,
+  with linear, logarithmic and decreasing axes.
+- **Review built into the workflow:** visible ROI/tick markers, curve overlays,
+  overlap diagnostics and manual recovery in one expandable section.
+- **Scientific software handoff:** PXRD XRDML export plus CSV/JSON; source pixels
+  and calibrated values remain distinct in API responses.
+- **Local operation:** no account, cloud upload, API key or model download. The
+  Windows ZIP includes Python and dependencies; OCR uses installed local support.
+
+## Four actions from figure to data
+
+| Action | What Autopilot does | What you review |
+| --- | --- | --- |
+| **Open Image** | Detects the plot region and displays the source figure. | Check the green ROI; adjust it if needed. |
+| **Auto-calibration** | Reads numeric labels locally, matches visible ticks and proposes an axis model. | Check/edit tick positions and values, then apply calibration. |
+| **Auto Extraction** | Separates colored/neutral traces, tries contrast/grid handling, and chooses upward-peak or downward-dip sampling. | Select curves and inspect the overlay/overlap regions. |
+| **Export** | Writes CSV, JSON or PXRD XRDML. | Choose the format for your analysis workflow. |
+
+The four actions stay at the bottom. **Manual options** starts collapsed and
+opens ROI selection, manual calibration, tracing and extraction/export settings.
+The image and point table have separate tabs so the plot remains easy to inspect.
+
+Autopilot uses multiple threshold trials and trace continuity, with presets for
+normal plots, grids, stacked curves and IR transmittance. It retains observed
+samples, without smoothing or filling missing columns. Same-color crossings and
+faint or touching strokes can need correction; coverage/separation labels are
+review diagnostics, not calibrated confidence probabilities.
 
 ## Windows downloads
 
-The [Windows preview release](https://github.com/unwatcher/Plot_Digitizer/releases/tag/v0.2.0-preview.2)
+The [Windows preview release](https://github.com/unwatcher/Plot_Digitizer/releases/tag/v0.3.0-preview.1)
 provides two ZIP folders, both including portable Python 3.14.10 x64:
 
 - **Ready-to-run:** extract the full folder and double-click `launch_plot_digitizer.bat`.
@@ -40,27 +74,6 @@ organized in `plot_digitizer/`; no CrystalTrace installation or catalog is
 required. Windows uses its installed OCR language support. If that engine
 fails, an installed Tesseract on PATH is used. macOS/Linux need Tesseract for
 automatic axis suggestions. Manual calibration works without OCR.
-
-## Automatic mode and review
-
-1. Open an image. Inspect the green plot ROI; draw a replacement if needed.
-2. Select **Auto-calibration…** at the bottom. Inspect the tick markers, correct
-   values or positions, and apply the reviewed calibration. You can also
-   expand **Manual options** to calibrate X and Y using visible tick values.
-3. Select **Auto Extraction…**. Automatic mode selects contrast,
-   grid handling and upward-peak/downward-dip sampling, then previews candidates.
-4. Click the desired curve, filter by color, or add all shown curves. Each
-   selected curve becomes a new dataset. Inspect points before exporting CSV,
-   JSON or PXRD XRDML from the bottom **Export…** menu.
-
-The four bottom actions stay visible. Manual options start collapsed; expand
-them for ROI selection, manual calibration, tracing and extraction/export settings.
-The image and digitized data table have separate tabs.
-
-**X coverage measures sampled image columns.** Separation statuses and orange
-bands identify touching or unresolved strokes; they are heuristic diagnostics.
-They do not give calibrated probabilities or prove correct curve identity.
-Calibration proposals are always reviewed before being applied.
 
 ## Handling difficult figures manually
 
@@ -112,6 +125,31 @@ study. The earlier larger development corpus is not distributed here, and its
 aggregate figures should not be read as performance claims for this example set.
 Full curve identity and numeric calibration accuracy need independent validation.
 
+## Connect your workflow with the local API
+
+Double-click `launch_api.bat` in a Windows release folder. From source, install
+`requirements-core.txt` and start the service without opening the desktop app:
+
+~~~text
+python -m plot_digitizer.api
+~~~
+
+In a second terminal, submit an image:
+
+~~~text
+python scripts/api_example.py examples/patent_plots/us8198452b2-fig1.png --output output/curves.json
+~~~
+
+The socket at `http://127.0.0.1:8765` offers `/health`, `/openapi.json`,
+`/v1/extract` and `/v1/calibration`. Request pixel candidates or OCR proposals,
+then supply reviewed calibration for numeric JSON/CSV or a selected PXRD curve
+as XRDML. It uses the same engine as the GUI, adds no framework dependencies,
+and does not retain uploaded images.
+
+See the [API guide](docs/API.md) for examples, browser integration, limits and
+XRDML options. The [GitHub tool review](docs/plot-digitizer-comparison.md) explains
+the workflow and format choices behind this project.
+
 ## Headless use and module boundaries
 
 Install `requirements-core.txt` for extraction and calibration inference without
@@ -137,9 +175,12 @@ bounded image working resolution and local-OCR timeouts are supported.
 | `digitizer_core.py` | ROI, presets, curve extraction and separation diagnostics |
 | `axis_ocr.py` | Local OCR adapters, word boxes and subprocess lifecycle |
 | `axis_calibration.py` | Numeric parsing, observed-tick matching and fit validation |
-| `gui.py` | Qt workers, review/correction, export and optional host integration |
+| `gui.py` | Qt workers, review/correction and optional host integration |
+| `exports.py` | Headless XRDML writer shared by GUI and API |
+| `api.py` | Local HTTP socket, request validation and workflow responses |
 
 CSV/JSON preserve floating-point coordinates, including small log-axis values.
+SPA export is not implemented in the current version.
 XRDML exports integer PXRD counts and is intended for diffraction software.
 Current exports do not bundle the complete source image/calibration/settings
 audit record; retain that context when building scientific datasets.

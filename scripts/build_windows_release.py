@@ -94,7 +94,7 @@ def prepare_base(folder, python_zip, revision, variant):
         destination = folder / path.relative_to(ROOT)
         installer.filesystem_path(destination.parent).mkdir(parents=True, exist_ok=True)
         shutil.copy2(installer.filesystem_path(path), installer.filesystem_path(destination))
-    for name in ("app_launcher.py", "install_offline_dependencies.py", "verify_offline_bundle.py",
+    for name in ("app_launcher.py", "api_launcher.py", "launch_api.bat", "install_offline_dependencies.py", "verify_offline_bundle.py",
                  "launch_plot_digitizer.bat", "install_dependencies.bat", "find_native_python314.ps1",
                  "wheel-manifest.json", "requirements-offline.txt"):
         shutil.copy2(SUPPORT / name, folder / name)
@@ -112,13 +112,15 @@ def prepare_base(folder, python_zip, revision, variant):
         "For the offline-wheels edition, run install_dependencies.bat first (or launch to install automatically).\n"
         "Installation uses the verified local wheels only; no pip, internet or administrator access is needed.\n"
         "For curve selection and axis calibration, see README.md.\n"
+        "For workflow integration, double-click launch_api.bat (http://127.0.0.1:8765).\n"
+        "The API runs without the GUI. See docs/API.md and scripts/api_example.py.\n"
         "Windows OCR needs an OCR language already installed in Windows; manual calibration remains available.\n",
         encoding="utf8")
     return metadata
 
 
 def verify_folder(folder):
-    command = [str(folder / "python314/python.exe"), "-I", "-B", str(folder / "verify_offline_bundle.py")]
+    command = [str(folder / "python314/python.exe"), "-I", "-B", str(folder / "verify_offline_bundle.py"), "--with-api"]
     environment = dict(os.environ, QT_QPA_PLATFORM="offscreen", PYTHONPATH="__invalid_external_runtime__")
     # Font cache stays outside the folder that is about to be archived.
     environment["MPLCONFIGDIR"] = str(folder.parent / "matplotlib-cache")
@@ -164,6 +166,10 @@ def release_notes(repository, revision):
             "The bottom bar contains **Open Image**, **Auto-calibration**, **Auto Extraction** and **Export**. "
             "Manual calibration, ROI, tracing and extraction/export settings are available under the collapsed **Manual options** section. "
             "The image and digitized data table have separate tabs. Review calibration suggestions and extracted curves before exporting CSV, JSON or XRDML.\n\n"
+            "## Local workflow API\n\n"
+            "Double-click `launch_api.bat` to start the bundled HTTP API at `http://127.0.0.1:8765`. "
+            "Submit PNG/JPEG images for curve candidates and OCR calibration proposals; send reviewed calibration for numeric JSON/CSV or select a PXRD curve for XRDML. "
+            "The API runs without a GUI and adds no dependencies. See `docs/API.md`, `/openapi.json` and `scripts/api_example.py`.\n\n"
             "## Original and extracted curve\n\n"
             "| Original PXRD figure | Automatic extraction |\n| --- | --- |\n"
             "| ![Original patent plot](" + base + "/example-pxrd-original.png) | ![Extracted curve](" + base + "/example-pxrd-extracted.png) |\n\n"

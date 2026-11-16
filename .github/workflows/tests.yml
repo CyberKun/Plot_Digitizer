@@ -14,6 +14,7 @@ jobs:
       - run: python -m unittest discover -s tests -p test_digitizer_core.py -v
       - run: python -m unittest discover -s tests -p test_axis_ocr.py -v
       - run: python -m unittest discover -s tests -p test_patent_plot_corpus.py -v
+      - run: python -m unittest discover -s tests -p test_api.py -v
   desktop:
     strategy:
       fail-fast: false

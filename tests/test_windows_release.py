@@ -137,6 +137,9 @@ class WindowsReleaseTests(unittest.TestCase):
         self.assertIn("LICENSE", files)
         self.assertIn("docs/images/pxrd-extracted.png", files)
         self.assertIn("examples/pxrd-extracted.csv", files)
+        for path in ("plot_digitizer/api.py", "plot_digitizer/exports.py", "release/windows/api_launcher.py",
+                     "release/windows/launch_api.bat", "docs/API.md"):
+            self.assertIn(path, files)
         self.assertFalse(any(p.startswith(("output/", "dist/", ".cache/")) for p in files))
         self.assertFalse(any(part.startswith("._") for p in files for part in Path(p).parts))
         self.assertEqual({p for p in files if p.startswith("examples/") and p.endswith(".png")}, {
