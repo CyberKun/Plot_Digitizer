@@ -23,9 +23,9 @@ python scripts/render_social_preview.py
 Run from the repository root. The script leaves the input figure, CSV and
 calibration/settings record unchanged. It draws the extracted curve from the
 recorded samples and leaves gaps where observed columns are missing.
-DejaVu Sans ships with Pillow wheels on some platforms; the renderer also
-checks common system fonts. Supply `--font /path/to/font.ttf` for a specific
-font. The generated PNG must remain below GitHub's 1 MB upload limit.
+The renderer checks common Windows, Linux and macOS font locations. Supply
+`--font /path/to/font.ttf` for a specific font. The generated PNG must remain
+below GitHub's 1 MB upload limit.
 
 ## Set the repository preview
 
