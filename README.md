@@ -52,9 +52,11 @@ settings, and previews curve candidates for review before export.
 | **Auto Extraction** | Separates colored/neutral traces, tries contrast/grid handling, and chooses upward-peak or downward-dip sampling. | Select curves and inspect the overlay/overlap regions. |
 | **Export** | Writes CSV, JSON or PXRD XRDML. | Choose the format for your analysis workflow. |
 
-The four actions stay at the bottom. **Manual options** starts collapsed and
-opens ROI selection, manual calibration, tracing and extraction/export settings.
-The image and point table have separate tabs so the plot remains easy to inspect.
+The four actions stay at the bottom. The **Manual mode** toggle at the top left
+opens a resizable controls sidebar on the left, with the image/data preview on
+the right. The same button becomes **Automatic mode** and restores the full-width
+preview. Switching modes preserves the image, calibration, datasets, selected
+dataset and preview tab. The image and point table have separate tabs.
 
 Autopilot uses multiple threshold trials and trace continuity, with presets for
 normal plots, grids, stacked curves and IR transmittance. It retains observed

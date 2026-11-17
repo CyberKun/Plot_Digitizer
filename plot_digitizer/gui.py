@@ -79,7 +79,7 @@ def extraction_instructions_html(language="en"):
         <h2>通用步骤</h2>
         <ol>
           <li>打开图像后会自动检测 ROI。检查绿色框；可关闭“打开图像时自动检测 ROI”，也可点击“自动检测 ROI”重试，或手动绘制框调整范围。</li>
-          <li>点击底部“自动校准…”并检查刻度建议；也可展开“手动选项”分别校准 X 与 Y 轴。</li>
+          <li>点击底部“自动校准…”并检查刻度建议；也可点击左上角“手动模式”，在左侧面板分别校准 X 与 Y 轴。</li>
           <li>点击底部“自动提取…”。自动驾驶会选择预设并检测曲线；在预览中点击目标曲线，也可按颜色筛选，再添加所选曲线或所有显示的曲线。每条曲线会存入一个新数据集。</li>
           <li>提取后检查彩色数据点；使用“框选拒绝点”拖框删除错误点。</li>
           <li>按 Ctrl+Z 可恢复最近一次框选删除，然后导出或加入参考数据库。</li>
@@ -103,7 +103,7 @@ def extraction_instructions_html(language="en"):
     <h2>Common workflow</h2>
     <ol>
       <li>Open the image to detect the ROI automatically. Inspect the green box. Toggle <b>Auto-detect ROI on image load</b> to disable this, use <b>Auto-detect ROI</b> to retry, or draw a box manually to adjust the area.</li>
-      <li>Click <b>Auto-calibration…</b> at the bottom and review the proposed ticks. Expand <b>Manual options</b> to calibrate the axes manually.</li>
+      <li>Click <b>Auto-calibration…</b> at the bottom and review the proposed ticks. Switch to <b>Manual mode</b> at the top left to calibrate the axes in the left sidebar.</li>
       <li>Click <b>Auto Extraction…</b> at the bottom. Autopilot chooses a preset and detects curve candidates. Click a curve in the preview or filter by color, then add the selected curve or all shown curves. Each is added as a new dataset.</li>
       <li>Extract and inspect the colored points. Use <b>Reject Points in Box</b> to drag around false points.</li>
       <li>Press Ctrl+Z to restore the most recent box rejection, then export or add the trace as a reference.</li>
@@ -472,6 +472,23 @@ ZH_LABELS = {
     "Auto Extraction…": "自动提取…",
     "Export…": "导出…",
     "Manual options": "手动选项",
+    "Manual mode": "手动模式",
+    "Automatic mode": "自动模式",
+    "Mode 1 — Dark Curve": "模式 1 — 暗色曲线",
+    "Mode 2 — Color Pick": "模式 2 — 颜色选取",
+    "Connectivity filter": "连通性过滤",
+    "XRDML export settings": "XRDML 导出设置",
+    "Step 0 — Plot Area (ROI)": "步骤 0 — 绘图区 (ROI)",
+    "Auto-detect baseline": "自动检测基线",
+    "Auto ROI on image load": "打开图像时自动检测 ROI",
+    "Auto threshold (128–235)": "自动阈值 (128–235)",
+    "Y-band (stacked curves)": "堆叠曲线 Y 带",
+    "Suppress grid / axis lines": "抑制网格 / 轴线",
+    "Draw ROI box": "绘制 ROI 框",
+    "Click X ticks": "点击 X 轴刻度",
+    "Click Y ticks": "点击 Y 轴刻度",
+    "Switch to manual calibration, ROI, extraction and export settings.": "切换到手动模式，在左侧设置校准、ROI、提取和导出。",
+    "Switch to the full-width automatic workflow.": "切换到全宽预览的自动模式。",
     "Extraction settings": "提取设置",
     "Export settings": "导出设置",
     "Open an image to begin.": "打开图像以开始。",
@@ -1333,6 +1350,7 @@ class MainWindow(QMainWindow):
     def _sync_dynamic_labels(self):
         if not hasattr(self, "canvas"):
             return
+        self._update_mode_toggle()
         if self.canvas.roi is None:
             self.lbl_roi.setText(self._tr("No ROI — full image used"))
         else:
@@ -1346,7 +1364,8 @@ class MainWindow(QMainWindow):
         root=QVBoxLayout(central); root.setContentsMargins(10,8,10,8); root.setSpacing(8)
 
         scroll=QScrollArea(); scroll.setWidgetResizable(True)
-        scroll.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        scroll.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Expanding)
+        scroll.setMinimumWidth(260)
         self.controls_scroll = scroll
         left=QWidget(); scroll.setWidget(left)
         lv=QVBoxLayout(left); lv.setContentsMargins(8,8,8,8); lv.setSpacing(8)
@@ -1358,15 +1377,17 @@ class MainWindow(QMainWindow):
         gv.addWidget(self.combo_scale); lv.addWidget(g)
 
         # ── ROI ───────────────────────────────────────────────────────────────
-        g=QGroupBox("Step 0 — Plot Area (ROI)  [recommended]"); gv=QVBoxLayout(g)
+        g=QGroupBox("Step 0 — Plot Area (ROI)"); gv=QVBoxLayout(g)
         hint=QLabel("Detect the plot area automatically, or draw a box inside the axes to exclude labels, borders, and margins.")
         hint.setWordWrap(True); gv.addWidget(hint)
-        self.chk_auto_roi=QCheckBox("Auto-detect ROI on image load")
+        self.chk_auto_roi=QCheckBox("Auto ROI on image load")
+        self.chk_auto_roi.setToolTip("Auto-detect ROI on image load")
         self.chk_auto_roi.setChecked(True); gv.addWidget(self.chk_auto_roi)
         self.auto_roi_button=QPushButton("Auto-detect ROI")
         self.auto_roi_button.setObjectName("roi")
         self.auto_roi_button.clicked.connect(self._detect_roi); gv.addWidget(self.auto_roi_button)
-        b=QPushButton("🟩  Draw ROI Box on Image"); b.setObjectName("roi")
+        b=QPushButton("Draw ROI box"); b.setObjectName("roi")
+        b.setToolTip("🟩  Draw ROI Box on Image")
         b.clicked.connect(self._start_roi); gv.addWidget(b)
         row=QHBoxLayout()
         b2=QPushButton("✕  Clear ROI"); b2.setObjectName("danger"); b2.clicked.connect(self._clear_roi); row.addWidget(b2)
@@ -1395,7 +1416,8 @@ class MainWindow(QMainWindow):
         self.x_calib_table.setMinimumHeight(110)
         self.x_calib_table.setMaximumHeight(int(300 * self._dpi_scale))
         xgv.addWidget(self.x_calib_table)
-        bx=QPushButton("🖱  Click X Ticks on Image"); bx.setObjectName("xbtn")
+        bx=QPushButton("Click X ticks"); bx.setObjectName("xbtn")
+        bx.setToolTip("🖱  Click X Ticks on Image")
         bx.clicked.connect(self._start_x_calibration); xgv.addWidget(bx)
         self.lbl_x_calib=QLabel("○ ○ ○  awaiting X points")
         self.lbl_x_calib.setAlignment(Qt.AlignCenter); xgv.addWidget(self.lbl_x_calib)
@@ -1416,7 +1438,8 @@ class MainWindow(QMainWindow):
         self.y_calib_table.setMinimumHeight(110)
         self.y_calib_table.setMaximumHeight(int(300 * self._dpi_scale))
         ygv.addWidget(self.y_calib_table)
-        by_=QPushButton("🖱  Click Y Ticks on Image"); by_.setObjectName("ybtn")
+        by_=QPushButton("Click Y ticks"); by_.setObjectName("ybtn")
+        by_.setToolTip("🖱  Click Y Ticks on Image")
         by_.clicked.connect(self._start_y_calibration); ygv.addWidget(by_)
         self.lbl_y_calib=QLabel("○ ○ ○  awaiting Y points")
         self.lbl_y_calib.setAlignment(Qt.AlignCenter); ygv.addWidget(self.lbl_y_calib)
@@ -1481,13 +1504,14 @@ class MainWindow(QMainWindow):
         pgv.addLayout(prow); av.addWidget(pg)
 
         # Dark curve mode — prominent for black-on-white plots
-        dg=QGroupBox("Mode 1 — Dark Curve  ★ (black on white)"); dgv=QVBoxLayout(dg)
+        dg=QGroupBox("Mode 1 — Dark Curve"); dgv=QVBoxLayout(dg)
         dgv.addWidget(QLabel("Best for black/dark lines on light background.\n(e.g. patent figures, scanned PXRD)"))
         dgv.addWidget(QLabel("Darkness threshold (0=black, 255=white):"))
         self.slider_dark=QSlider(Qt.Horizontal); self.slider_dark.setRange(10,240); self.slider_dark.setValue(128)
         self.lbl_dark=QLabel("128"); self.slider_dark.valueChanged.connect(lambda v: self.lbl_dark.setText(str(v)))
         dr=QHBoxLayout(); dr.addWidget(self.slider_dark); dr.addWidget(self.lbl_dark); dgv.addLayout(dr)
-        self.chk_dark_auto_threshold=QCheckBox("Auto-select darkness threshold (128–235)")
+        self.chk_dark_auto_threshold=QCheckBox("Auto threshold (128–235)")
+        self.chk_dark_auto_threshold.setToolTip("Auto-select darkness threshold (128–235)")
         self.chk_dark_auto_threshold.setChecked(True)
         self.chk_dark_auto_threshold.toggled.connect(
             lambda checked: self.slider_dark.setEnabled(not checked)
@@ -1505,7 +1529,8 @@ class MainWindow(QMainWindow):
                                        "center  (thick strokes)"])
         row.addWidget(self.combo_dark_pick); dgv.addLayout(row)
         # Y-band (vertical restriction)
-        self.chk_dark_yband=QCheckBox("📏  Y-band (restrict rows for waterfall curves)")
+        self.chk_dark_yband=QCheckBox("Y-band (stacked curves)")
+        self.chk_dark_yband.setToolTip("📏  Y-band (restrict rows for waterfall curves)")
         self.chk_dark_yband.setChecked(False); dgv.addWidget(self.chk_dark_yband)
         yband_box_d=QGroupBox("Y-band (pixel rows in image)"); yband_v_d=QVBoxLayout(yband_box_d)
         yband_box_d.setVisible(False)
@@ -1523,9 +1548,11 @@ class MainWindow(QMainWindow):
         self.chk_dark_yband.toggled.connect(yband_box_d.setVisible)
 
         # Connectivity filter controls
-        self.chk_dark_conn=QCheckBox("🔗  Connectivity filter  (removes labels/text)"); self.chk_dark_conn.setChecked(True)
+        self.chk_dark_conn=QCheckBox("Connectivity filter"); self.chk_dark_conn.setChecked(True)
+        self.chk_dark_conn.setToolTip("🔗  Connectivity filter  (removes labels/text)")
         dgv.addWidget(self.chk_dark_conn)
-        self.chk_dark_grid=QCheckBox("Suppress long grid / axis lines")
+        self.chk_dark_grid=QCheckBox("Suppress grid / axis lines")
+        self.chk_dark_grid.setToolTip("Suppress long grid / axis lines")
         self.chk_dark_grid.setChecked(True); dgv.addWidget(self.chk_dark_grid)
         grid_row=QHBoxLayout(); grid_row.addWidget(QLabel("Grid suppression:"))
         self.combo_dark_grid_strength=QComboBox()
@@ -1553,7 +1580,7 @@ class MainWindow(QMainWindow):
         av.addWidget(dg)
 
         # Color mode
-        cg=QGroupBox("Mode 2 — Color Pick  (colored curves)"); cgv=QVBoxLayout(cg)
+        cg=QGroupBox("Mode 2 — Color Pick"); cgv=QVBoxLayout(cg)
         crow=QHBoxLayout()
         self.color_swatch=ColorSwatch((50,50,200)); self.color_swatch.clicked.connect(self._pick_color_dialog)
         self.btn_eyedrop=QPushButton("🎯 Eyedrop"); self.btn_eyedrop.clicked.connect(self._start_eyedrop)
@@ -1575,7 +1602,8 @@ class MainWindow(QMainWindow):
                                         "center  (thick/dotted)"])
         row.addWidget(self.combo_color_pick); cgv.addLayout(row)
         # Y-band
-        self.chk_color_yband=QCheckBox("📏  Y-band (restrict rows for waterfall curves)")
+        self.chk_color_yband=QCheckBox("Y-band (stacked curves)")
+        self.chk_color_yband.setToolTip("📏  Y-band (restrict rows for waterfall curves)")
         self.chk_color_yband.setChecked(False); cgv.addWidget(self.chk_color_yband)
         yband_box_c=QGroupBox("Y-band (pixel rows in image)"); yband_v_c=QVBoxLayout(yband_box_c)
         yband_box_c.setVisible(False)
@@ -1590,7 +1618,8 @@ class MainWindow(QMainWindow):
         yband_v_c.addLayout(r_ybc); cgv.addWidget(yband_box_c)
         self.chk_color_yband.toggled.connect(yband_box_c.setVisible)
 
-        self.chk_color_conn=QCheckBox("🔗  Connectivity filter  (removes labels/text)"); self.chk_color_conn.setChecked(True)
+        self.chk_color_conn=QCheckBox("Connectivity filter"); self.chk_color_conn.setChecked(True)
+        self.chk_color_conn.setToolTip("🔗  Connectivity filter  (removes labels/text)")
         cgv.addWidget(self.chk_color_conn)
         conn_box_c=QGroupBox("Connectivity parameters"); conn_vc=QVBoxLayout(conn_box_c)
         r1c=QHBoxLayout(); r1c.addWidget(QLabel("Min component area (×total):"))
@@ -1624,7 +1653,8 @@ class MainWindow(QMainWindow):
 
         # Export
         g=QGroupBox("Export settings"); gv=QVBoxLayout(g)
-        self.chk_xrdml_opts=QCheckBox("⚙  XRDML options (wavelength, source)"); gv.addWidget(self.chk_xrdml_opts)
+        self.chk_xrdml_opts=QCheckBox("XRDML export settings"); gv.addWidget(self.chk_xrdml_opts)
+        self.chk_xrdml_opts.setToolTip("⚙  XRDML options (wavelength, source)")
         xrdml_box=QGroupBox("XRDML Parameters"); xrdml_v=QVBoxLayout(xrdml_box); xrdml_box.setVisible(False)
         r=QHBoxLayout(); r.addWidget(QLabel("Ka1 (Å):"))
         self.spin_ka1=QDoubleSpinBox(); self.spin_ka1.setDecimals(7); self.spin_ka1.setRange(0.1,10); self.spin_ka1.setSingleStep(0.0001); self.spin_ka1.setValue(1.5405980); r.addWidget(self.spin_ka1); xrdml_v.addLayout(r)
@@ -1662,7 +1692,7 @@ class MainWindow(QMainWindow):
             "Enter the inflated background value here to zero it.")
         r.addWidget(self.spin_yoffset); xrdml_v.addLayout(r)
         # Auto-detect baseline button
-        btn_bl=QPushButton("🎯  Auto-detect baseline from data")
+        btn_bl=QPushButton("Auto-detect baseline")
         btn_bl.setToolTip(
             "Sets the Y baseline offset to the 5th-percentile\n"
             "intensity of the active dataset — a robust estimate\n"
@@ -1719,25 +1749,35 @@ class MainWindow(QMainWindow):
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         tv.addWidget(self.table)
         self.preview_tabs.addTab(tg, "Digitized Data")
-        root.addWidget(self.preview_tabs, 1)
+        # Both modes use the same widgets and data. The controls are a full-height
+        # sidebar in manual mode, rather than a second row below the preview.
+        self.workspace_splitter=QSplitter(Qt.Horizontal)
+        self.workspace_splitter.setChildrenCollapsible(False)
+        self.workspace_splitter.setHandleWidth(6)
+        self.workspace_splitter.addWidget(scroll)
+        self.workspace_splitter.addWidget(self.preview_tabs)
+        self.workspace_splitter.setStretchFactor(0, 0)
+        self.workspace_splitter.setStretchFactor(1, 1)
+        self._manual_sidebar_width=360
 
-        disclosure=QHBoxLayout()
+        self.mode_bar=QWidget()
+        disclosure=QHBoxLayout(self.mode_bar)
+        disclosure.setContentsMargins(0,0,0,0)
         self.manual_options_button=QToolButton()
-        self.manual_options_button.setText("Manual options")
+        self.manual_options_button.setText("Manual mode")
         self.manual_options_button.setCheckable(True)
-        self.manual_options_button.setArrowType(Qt.RightArrow)
-        self.manual_options_button.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
-        self.manual_options_button.setToolTip("Show manual calibration, ROI, extraction and export settings.")
+        self.manual_options_button.setToolButtonStyle(Qt.ToolButtonTextOnly)
+        self.manual_options_button.setToolTip("Switch to manual calibration, ROI, extraction and export settings.")
         self.manual_options_button.toggled.connect(self._set_manual_options_visible)
         disclosure.addWidget(self.manual_options_button)
         self.workflow_hint=QLabel()
         self.workflow_hint.setWordWrap(True)
         disclosure.addWidget(self.workflow_hint, 1)
-        root.addLayout(disclosure)
-        root.addWidget(scroll)
+        root.addWidget(self.mode_bar)
+        root.addWidget(self.workspace_splitter, 1)
         scroll.hide()
 
-        # These four actions stay outside the scrolling manual section.
+        # The shared actions stay outside the workspace and scrolling sidebar.
         self.action_bar=QWidget()
         self.action_grid=QGridLayout(self.action_bar)
         self.action_grid.setContentsMargins(0,0,0,0)
@@ -1772,17 +1812,34 @@ class MainWindow(QMainWindow):
         root.addWidget(self.action_bar)
         self._layout_workflow_actions()
         for label in left.findChildren(QLabel):
-            if "\n" in label.text() or len(label.text()) > 60:
-                label.setWordWrap(True)
+            label.setWordWrap(True)
+        for combo in left.findChildren(QComboBox):
+            combo.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
+            combo.setMinimumContentsLength(min(combo.minimumContentsLength() or 12, 12))
         wrap_control_rows(left)
         self.status=QStatusBar(); self.setStatusBar(self.status)
         self._apply_extraction_preset(announce=False)
         self._update_workflow_state()
 
     def _set_manual_options_visible(self, expanded):
-        self.manual_options_button.setArrowType(Qt.DownArrow if expanded else Qt.RightArrow)
+        if not expanded and self.controls_scroll.isVisible():
+            self._manual_sidebar_width=self.workspace_splitter.sizes()[0]
         self.controls_scroll.setVisible(expanded)
+        if expanded:
+            available=max(0, self.workspace_splitter.width() - self.workspace_splitter.handleWidth())
+            sidebar=min(self._manual_sidebar_width, max(260, available - 240))
+            self.workspace_splitter.setSizes([sidebar, max(0, available - sidebar)])
+        self._update_mode_toggle()
         self._update_control_metrics()
+
+    def _update_mode_toggle(self):
+        if not hasattr(self, "manual_options_button"):
+            return
+        manual=self.manual_options_button.isChecked()
+        self.manual_options_button.setText(self._tr("Automatic mode" if manual else "Manual mode"))
+        self.manual_options_button.setToolTip(self._tr(
+            "Switch to the full-width automatic workflow." if manual else
+            "Switch to manual calibration, ROI, extraction and export settings."))
 
     def _update_workflow_state(self):
         if not hasattr(self, "workflow_hint"):
@@ -1812,8 +1869,9 @@ class MainWindow(QMainWindow):
         manual_size=self.manual_options_button.minimumSizeHint()
         metrics=self.manual_options_button.fontMetrics()
         padding=2 * metrics.horizontalAdvance(" ")
-        manual_size.setWidth(max(manual_size.width(), metrics.horizontalAdvance(self.manual_options_button.text())
-                                 + self.manual_options_button.iconSize().width() + padding))
+        mode_text_width=max(metrics.horizontalAdvance(self._tr(label))
+                            for label in ("Manual mode", "Automatic mode"))
+        manual_size.setWidth(max(manual_size.width(), mode_text_width + 2 * padding))
         manual_size.setHeight(max(manual_size.height(), metrics.height() + padding))
         geometry_key=(columns, available, tuple((size.width(), size.height()) for size in button_sizes),
                       manual_size.width(), manual_size.height(), self.controls_scroll.isHidden())
@@ -1858,7 +1916,12 @@ class MainWindow(QMainWindow):
             table.setMinimumHeight(table.horizontalHeader().sizeHint().height() + 3 * row_height + 8)
             table.setMaximumHeight(max(300, 7 * row_height))
         panel.layout().activate()
-        self.controls_scroll.setMaximumHeight(max(120, min(280, self.height() // 3)))
+        # Reserve space for the controls and vertical scrollbar; otherwise a
+        # slightly wider font can introduce horizontal scrolling in the sidebar.
+        sidebar_minimum=(panel.minimumSizeHint().width()
+                         + self.controls_scroll.verticalScrollBar().sizeHint().width()
+                         + 2 * self.controls_scroll.frameWidth())
+        self.controls_scroll.setMinimumWidth(max(260, sidebar_minimum))
         self._layout_workflow_actions()
 
     def changeEvent(self, event):
