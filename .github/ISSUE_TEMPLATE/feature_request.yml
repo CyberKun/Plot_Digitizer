@@ -1,0 +1,28 @@
+name: Feature request
+description: Suggest an improvement to a scientific digitization workflow.
+title: "[Feature] "
+body:
+  - type: textarea
+    id: workflow
+    attributes:
+      label: What are you trying to do?
+      description: Describe the scientific workflow and the difficulty you encounter.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Explain the result you want, with an input/output example if possible.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Current workaround or alternatives
+      description: What do you do today, and where does it fall short?
+  - type: textarea
+    id: context
+    attributes:
+      label: Scientific or software context
+      description: Include relevant axis types, export formats, target software or public example sources.

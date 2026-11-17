@@ -1,1 +1,1 @@
-Turn scientific figures into data your analysis software can use. Offline Autopilot for PXRD, Raman and IR: automatic calibration, curve extraction, XRDML export for HighScore, and a local API for lab workflows.
+Offline plot digitizer for PXRD, Raman and infrared spectroscopy. OCR-assisted calibration, automatic curve extraction, CSV/JSON and HighScore-compatible XRDML export, and a local REST API.

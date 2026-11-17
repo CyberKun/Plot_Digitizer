@@ -1,16 +1,38 @@
 # PlotDigitizer
 
-**Scientific figures to reviewed curve data, ready for your analysis software.**
+**Offline plot digitizer for PXRD, Raman and infrared spectroscopy.**
 
-Recover PXRD, Raman and IR curves from plot images with a local Autopilot workflow:
-**Open Image → Auto-calibration → Auto Extraction → Export**. The app detects the
-plot region, proposes axis calibration and extraction settings, and previews
-curve candidates so you can check the result before saving it.
+[![Regression checks](https://github.com/unwatcher/Plot_Digitizer/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/unwatcher/Plot_Digitizer/actions/workflows/tests.yml)
+[![License: BSD 3-Clause](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](LICENSE)
 
-Export **HighScore-compatible XRDML** for diffraction work, or full-precision
-**CSV/JSON** for comparison, reference libraries and data processing. Use the
-portable Windows app for interactive review, or the bundled **local HTTP API**
-to connect Autopilot to scripts, notebooks and laboratory workflows.
+Recover curves from scientific plot images and export **CSV, JSON or
+HighScore-compatible XRDML**. Review automatic axis calibration and curve
+extraction in the desktop app, or connect the same engine to scripts through
+the **local REST API**. No account, cloud upload or API key is needed.
+
+**[Download Windows preview](https://github.com/unwatcher/Plot_Digitizer/releases/download/v0.3.0-preview.1/PlotDigitizer-0.3.0-preview.1-ready-win64.zip)**
+· [Download options](#windows-downloads)
+· [Run from source](#run-from-source)
+· [API guide](docs/API.md)
+· [Contribute](CONTRIBUTING.md)
+
+**Open Image → Auto-calibration → Auto Extraction → Review and Export**
+
+| Original PXRD patent plot | Extracted numerical curve |
+| --- | --- |
+| ![Original PXRD figure from US8198452B2](examples/patent_plots/us8198452b2-fig1.png) | ![Automatically extracted PXRD curve](docs/images/pxrd-extracted.png) |
+
+This example retains **563 observed points** with reviewed printed-axis
+calibration and no smoothing or filling of missing columns.
+[Download the CSV](examples/pxrd-extracted.csv), inspect the
+[calibration/settings record](examples/pxrd-extraction.json), or try the
+[four bundled examples](#four-patent-examples). It illustrates one extraction;
+it is not an independent accuracy benchmark.
+
+## Why use PlotDigitizer?
+
+Autopilot detects the plot region, proposes axis calibration and extraction
+settings, and previews curve candidates for review before export.
 
 - **Extraction for spectra:** grid handling, stacked traces and downward IR dips,
   with linear, logarithmic and decreasing axes.
@@ -42,8 +64,19 @@ review diagnostics, not calibrated confidence probabilities.
 
 ## Windows downloads
 
-The [Windows preview release](https://github.com/unwatcher/Plot_Digitizer/releases/tag/v0.3.0-preview.1)
-provides two ZIP folders, both including portable Python 3.14.10 x64:
+Choose the **v0.3 preview** for the desktop and local API described in this
+README. The previous desktop release is also available:
+
+| Release | Downloads | Includes |
+| --- | --- | --- |
+| **Current preview: v0.3.0-preview.1** | [Ready-to-run ZIP](https://github.com/unwatcher/Plot_Digitizer/releases/download/v0.3.0-preview.1/PlotDigitizer-0.3.0-preview.1-ready-win64.zip) · [Offline-wheel ZIP](https://github.com/unwatcher/Plot_Digitizer/releases/download/v0.3.0-preview.1/PlotDigitizer-0.3.0-preview.1-offline-wheels-win64.zip) · [Release notes and checksums](https://github.com/unwatcher/Plot_Digitizer/releases/tag/v0.3.0-preview.1) | Desktop Autopilot and bundled local API; a prerelease. |
+| **Previous desktop: v0.2.0-preview.2** | [Release page and ZIPs](https://github.com/unwatcher/Plot_Digitizer/releases/tag/v0.2.0-preview.2) | Earlier desktop package, without the bundled local API. |
+
+GitHub's **Latest** release currently points to v0.2. Use the explicit v0.3
+links above for the new API workflow. Windows ZIPs are about **330–340 MB**
+because they include Python and dependencies.
+
+Both v0.3 ZIPs include portable Python 3.14.10 x64:
 
 - **Ready-to-run:** extract the full folder and double-click `launch_plot_digitizer.bat`.
 - **Offline wheels:** extract the full folder, run `install_dependencies.bat`, then launch.
@@ -55,9 +88,12 @@ SHA-256 metadata. Windows OCR still uses the language support installed in Windo
 
 ## Run from source
 
-Use 64-bit CPython 3.14. From the repository directory:
+Use 64-bit CPython 3.14 on Windows, macOS or Linux. Clone the repository
+(or extract its source ZIP), then create an environment:
 
 ```text
+git clone https://github.com/unwatcher/Plot_Digitizer.git
+cd Plot_Digitizer
 python -m venv .venv
 ```
 
@@ -93,17 +129,9 @@ offsets are retained as displayed and should be interpreted explicitly.
 
 ## Four patent examples
 
-One example is shown before and after extraction:
-
-| Original PXRD patent plot | Extracted numerical curve |
-| --- | --- |
-| ![Original PXRD figure from US8198452B2](examples/patent_plots/us8198452b2-fig1.png) | ![Automatically extracted PXRD curve](docs/images/pxrd-extracted.png) |
-
-Autopilot chose the Normal preset and threshold 160, retaining 563 observed
-points. Axes in the extracted preview use reviewed printed tick coordinates;
-no smoothing or filling of missing columns is applied. The
-[CSV](examples/pxrd-extracted.csv) and [calibration/settings record](examples/pxrd-extraction.json)
-are included. Recreate the preview with `python scripts/render_example.py`.
+The before/after PXRD example at the top uses the Normal preset and threshold
+160. Recreate its preview, CSV and settings record with
+`python scripts/render_example.py` after installing `requirements.txt`.
 
 Only four U.S. utility-patent plot crops are bundled, from two patent families:
 
@@ -127,7 +155,8 @@ Full curve identity and numeric calibration accuracy need independent validation
 
 ## Connect your workflow with the local API
 
-Double-click `launch_api.bat` in a Windows release folder. From source, install
+Double-click `launch_api.bat` in a **v0.3 preview** Windows release folder.
+From source, install
 `requirements-core.txt` and start the service without opening the desktop app:
 
 ~~~text
@@ -224,6 +253,24 @@ ZIP contents before writing `SHA256SUMS.txt` and `release-manifest.json` under
 `dist/`. Python/dependency licenses are retained inside each package. Release
 uploads use GitHub Actions; existing tags or assets that belong to another
 revision are never overwritten.
+
+## Help and contributions
+
+[Report a bug or request a feature](https://github.com/unwatcher/Plot_Digitizer/issues/new/choose).
+Include your release tag or source commit, operating system and steps to
+reproduce the problem. A bundled example or a small shareable image helps
+diagnose extraction issues.
+
+Documentation corrections, reproducible bug reports, scientific workflow
+examples and focused code changes are welcome. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for setup, checks and example provenance.
+
+## Cite PlotDigitizer
+
+If you use PlotDigitizer in research, use the metadata in
+[CITATION.cff](CITATION.cff) or GitHub's **Cite this repository** menu. Record the
+release tag or commit you used alongside your reviewed calibration and
+extraction settings. Cite source figures separately where applicable.
 
 ## License
 

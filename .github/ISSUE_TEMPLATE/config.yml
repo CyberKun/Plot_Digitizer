@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Setup and workflow documentation
+    url: https://github.com/unwatcher/Plot_Digitizer#readme
+    about: Check Windows downloads, source setup, manual recovery and local API usage.
+  - name: Contribution guide
+    url: https://github.com/unwatcher/Plot_Digitizer/blob/main/CONTRIBUTING.md
+    about: Find development setup, verification commands and example provenance guidance.

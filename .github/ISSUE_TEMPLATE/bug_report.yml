@@ -1,0 +1,55 @@
+name: Bug report
+description: Report a reproducible desktop, extraction, calibration or API problem.
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Include a small reproducible example when possible. Bundled or synthetic
+        plots are ideal. Attach only material you can share publicly and include
+        the source/reuse basis for external figures.
+  - type: input
+    id: version
+    attributes:
+      label: Release tag or commit
+      placeholder: "v0.3.0-preview.1, or the commit SHA for a source checkout"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Operating system and launch method
+      placeholder: "Windows 11 x64, ready-to-run ZIP; or Ubuntu, Python 3.14, source/API"
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Include the image/example, workflow and relevant ROI, preset or threshold.
+      placeholder: |
+        1. Open examples/patent_plots/...
+        2. Run Auto-calibration and review ...
+        3. Run Auto Extraction with ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+      description: For numerical problems, include the expected axis values, curve or export behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+      description: Describe the result and attach a shareable screenshot or image if useful.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error message or relevant logs
+      description: Remove private paths, tokens and laboratory information before posting.
+      render: text
